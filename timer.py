@@ -1,5 +1,7 @@
 import pygame
 import sys
+import requests
+import webbrowser
 from button import Button
 
 pygame.init()
@@ -15,7 +17,7 @@ WHITE_BUTTON = pygame.image.load("image_assets/button.png")
 
 FONT = pygame.font.Font("image_assets/ArialRoundedMTBold.ttf", 120)
 timer_text = FONT.render("25:00", True, "white")
-timer_text_rect = timer_text.get_rect(center=(WIDTH/2, HEIGHT/2-25))
+timer_text_rect = timer_text.get_rect(center=(WIDTH/2-80, HEIGHT/2-15))
 
 START_STOP_BUTTON = Button(WHITE_BUTTON, (WIDTH/2, HEIGHT/2+100), 170, 60, "START",
                     pygame.font.Font("image_assets/ArialRoundedMTBold.ttf", 20), "#c97676", "#9ab034")
@@ -26,9 +28,9 @@ SHORT_BREAK_BUTTON = Button(None, (WIDTH/2, HEIGHT/2-140), 120, 30, "Short Break
 LONG_BREAK_BUTTON = Button(None, (WIDTH/2+150, HEIGHT/2-140), 120, 30, "Long Break",
                     pygame.font.Font("image_assets/ArialRoundedMTBold.ttf", 20), "#FFFFFF", "#9ab034")
 
-POMODORO_LENGTH = 1500 # 1500 secs / 25 mins
-SHORT_BREAK_LENGTH = 300 # 300 secs / 5 mins
-LONG_BREAK_LENGTH = 900 # 900 secs / 15 mins
+POMODORO_LENGTH = 7200 # 7200 secs / 2 hrs
+SHORT_BREAK_LENGTH = 600 # 600 secs / 10 mins
+LONG_BREAK_LENGTH = 1800 # 1800 secs / 1 hrs
 
 current_seconds = POMODORO_LENGTH
 pygame.time.set_timer(pygame.USEREVENT, 1000)
@@ -41,10 +43,7 @@ while True:
             sys.exit()
         if event.type == pygame.MOUSEBUTTONDOWN:
             if START_STOP_BUTTON.check_for_input(pygame.mouse.get_pos()):
-                if started:
-                    started = False
-                else:
-                    started = True
+                started = not started
             if POMODORO_BUTTON.check_for_input(pygame.mouse.get_pos()):
                 current_seconds = POMODORO_LENGTH
                 started = False
@@ -54,20 +53,14 @@ while True:
             if LONG_BREAK_BUTTON.check_for_input(pygame.mouse.get_pos()):
                 current_seconds = LONG_BREAK_LENGTH
                 started = False
-            if started:
-                START_STOP_BUTTON.text_input = "STOP"
-                START_STOP_BUTTON.text = pygame.font.Font("image_assets/ArialRoundedMTBold.ttf", 20).render(
-                                        START_STOP_BUTTON.text_input, True, START_STOP_BUTTON.base_color)
-            else:
-                START_STOP_BUTTON.text_input = "START"
-                START_STOP_BUTTON.text = pygame.font.Font("image_assets/ArialRoundedMTBold.ttf", 20).render(
-                                        START_STOP_BUTTON.text_input, True, START_STOP_BUTTON.base_color)
+            START_STOP_BUTTON.text_input = "STOP" if started else "START"
+            START_STOP_BUTTON.text = pygame.font.Font("image_assets/ArialRoundedMTBold.ttf", 20).render(
+                START_STOP_BUTTON.text_input, True, START_STOP_BUTTON.base_color)
         if event.type == pygame.USEREVENT and started:
             current_seconds -= 1
 
     SCREEN.fill("#ba4949")
     SCREEN.blit(BACKDROP, BACKDROP.get_rect(center=(WIDTH/2, HEIGHT/2)))
-
     START_STOP_BUTTON.update(SCREEN)
     START_STOP_BUTTON.change_color(pygame.mouse.get_pos())
     POMODORO_BUTTON.update(SCREEN)
@@ -80,7 +73,18 @@ while True:
     if current_seconds >= 0:
         display_seconds = current_seconds % 60
         display_minutes = int(current_seconds / 60) % 60
-    timer_text = FONT.render(f"{display_minutes:02}:{display_seconds:02}", True, "white")
+        display_hrs=int(current_seconds/3600)
+    else:
+        # Make an HTTP request to the Flask server to redirect to the HTML page
+        print("Timer ended, making HTTP request to /end") 
+        response = requests.get("http://127.0.0.1:5000/end") 
+        print(f"Response status code: {response.status_code}")
+        if response.status_code == 200: 
+            # Open the HTML page in the default web browser 
+            webbrowser.open("http://127.0.0.1:5000/end")
+        pygame.quit()
+        sys.exit()
+    timer_text = FONT.render(f"{display_hrs:02}:{display_minutes:02}:{display_seconds:02}", True, "white")
     SCREEN.blit(timer_text, timer_text_rect)
 
     pygame.display.update()
